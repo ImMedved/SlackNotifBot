@@ -37,7 +37,6 @@ public class SlackService {
         this.lastCheckTime = userSettingsDAO.getLastCheckTime(userId);
     }
 
-    // Получение списка всех каналов, в которых состоит пользователь
     public List<String> getUserChannels() throws IOException, SlackApiException {
         Slack slack = Slack.getInstance();
         List<String> channelIds = new ArrayList<>();
@@ -63,10 +62,8 @@ public class SlackService {
 
         List<Message> unreadMessages = new ArrayList<>();
 
-        // Проверяем, не является ли response или его список сообщений null
         if (response != null && response.getMessages() != null) {
             for (Message message : response.getMessages()) {
-                // Преобразуем timestamp сообщения и сравниваем с lastCheckTime
                 double messageTimestamp = Double.parseDouble(message.getTs());
                 if (lastCheckTime == null || messageTimestamp > lastCheckTime.getTime() / 1000.0) {
                     if (containsMention(message, userId) || containsKeywords(message)) {
@@ -86,15 +83,11 @@ public class SlackService {
         return text != null && (text.contains("<@" + userId + ">") || text.contains("@here") || text.contains("@channel"));
     }
 
-
-    // Метод для генерации отчета, включая просмотр всех каналов
     public String generateDailySummary() throws IOException, SlackApiException, SQLException {
         List<Message> allMessages = new ArrayList<>();
 
-        // Получаем все каналы, в которых пользователь состоит
         List<String> userChannels = getUserChannels();
 
-        // Получаем сообщения из каждого канала
         for (String channelId : userChannels) {
             allMessages.addAll(getUnreadChannelMessages(channelId, userId));  // Добавляем userId в вызов
         }
@@ -107,7 +100,6 @@ public class SlackService {
         List<Message> keywordChannelMessages = new ArrayList<>();
         List<Message> keywordThreadMessages = new ArrayList<>();
 
-        // Классифицируем сообщения по категориям
         for (Message msg : allMessages) {
             boolean isFromImportantUser = importantUsers.contains(msg.getUser());
             boolean containsKeywords = containsKeywords(msg);
@@ -129,7 +121,6 @@ public class SlackService {
             }
         }
 
-        // Формируем отчет
         StringBuilder report = new StringBuilder("Daily summary of your Slack messages:\n\n");
 
         report.append("**Direct Messages from Important Users:**\n");
@@ -195,7 +186,6 @@ public class SlackService {
         }
     }
 
-    // Метод для отправки сообщения пользователю
     public void sendMessage(String channelId, String text) {
         Slack slack = Slack.getInstance();
         try {
@@ -212,11 +202,8 @@ public class SlackService {
             e.printStackTrace();
         }
     }
-
-    // Метод для обновления времени последней проверки
     public void updateLastCheckTime() throws SQLException {
         Timestamp currentTimestamp = new Timestamp(System.currentTimeMillis());
         userSettingsDAO.updateLastCheckTime(userId, currentTimestamp);
     }
-
 }
