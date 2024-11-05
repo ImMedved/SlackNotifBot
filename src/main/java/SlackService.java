@@ -1,10 +1,6 @@
 import DAO.UserSettingsDAO;
 import com.slack.api.Slack;
 import com.slack.api.methods.SlackApiException;
-import com.slack.api.methods.request.chat.ChatPostMessageRequest;
-import com.slack.api.methods.request.conversations.ConversationsOpenRequest;
-import com.slack.api.methods.response.chat.ChatPostMessageResponse;
-import com.slack.api.methods.response.conversations.ConversationsOpenResponse;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -27,43 +23,30 @@ public class SlackService {
     }
 
     public void sendDailySummary() throws IOException, SlackApiException, SQLException {
-        String report = slackSummaryService.generateDailySummary(userId);
-        System.out.println("Report is: " + report);
-        sendMessageToSlack(userId ,report);
+        String report = slackSummaryService.generateDailySummary();
+        sendMessageToSlack(report);
         updateLastCheckTime();
     }
 
-    public void sendMessageToSlack(String userId, String text) {
+    private void sendMessageToSlack(String text) {
         Slack slack = Slack.getInstance();
 
         try {
-            // Открываем личный канал с пользователем (или получаем существующий)
-            ConversationsOpenResponse openResponse = slack.methods(token).conversationsOpen(ConversationsOpenRequest.builder()
-                    .users(List.of(userId))
-                    .build());
+            var openResponse = slack.methods(token).conversationsOpen(req -> req.users(List.of(userId)));
 
             if (openResponse.isOk()) {
                 String channelId = openResponse.getChannel().getId();
-
-                // Отправляем сообщение в личный канал
-                ChatPostMessageResponse response = slack.methods(token).chatPostMessage(ChatPostMessageRequest.builder()
-                        .channel(channelId)
-                        .text(text)
-                        .build());
+                var response = slack.methods(token).chatPostMessage(req -> req.channel(channelId).text(text));
 
                 if (!response.isOk()) {
                     System.err.println("Error sending message: " + response.getError());
                 }
-            } else {
-                System.err.println("Error opening conversation: " + openResponse.getError());
             }
         } catch (IOException | SlackApiException e) {
-            System.err.println("Exception occurred while sending message: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    // Сделаем этот метод публичным для доступа из других классов
     public void updateLastCheckTime() throws SQLException {
         userSettingsDAO.updateLastCheckTime(userId, new java.sql.Timestamp(System.currentTimeMillis()));
     }
