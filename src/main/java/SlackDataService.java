@@ -1,5 +1,8 @@
 import com.slack.api.Slack;
 import com.slack.api.methods.SlackApiException;
+import com.slack.api.methods.request.conversations.ConversationsJoinRequest;
+import com.slack.api.methods.request.conversations.ConversationsListRequest;
+import com.slack.api.methods.response.conversations.ConversationsJoinResponse;
 import com.slack.api.methods.response.conversations.ConversationsListResponse;
 import com.slack.api.methods.response.conversations.ConversationsHistoryResponse;
 import com.slack.api.model.Conversation;
@@ -53,9 +56,19 @@ public class SlackDataService {
                 .types(List.of(ConversationType.PUBLIC_CHANNEL, ConversationType.PRIVATE_CHANNEL)));
 
         if (response.getChannels() != null) {
-            for (Conversation channel : response.getChannels()) {
-                channelIds.add(channel.getId());
-            }
+            //for (Conversation channel : response.getChannels()) {
+            //    channelIds.add(channel.getId());
+            //}
+            channelIds.add("C07UZVBBG68");
+            addBotToChannel("C07UZVBBG68");
+            //Todo:
+            //  Не работает проверка на нахождение пользователя в канале,
+            //  несмотря на то, что пользователь и так есть в канале, бот его продолжает добавлять.
+            /*for (Conversation channel : response.getChannels()) {
+                if (!channel.isMember()) {
+                    addBotToChannel(channel.getId());
+                }
+            }*/
         }
         return channelIds;
     }
@@ -78,5 +91,21 @@ public class SlackDataService {
 
     public String getUserId() {
         return userId;
+    }
+
+    private void addBotToChannel(String channelId) throws IOException, SlackApiException {
+        Slack slack = Slack.getInstance();
+        ConversationsJoinResponse joinResponse = slack.methods(token).conversationsJoin(
+                ConversationsJoinRequest.builder()
+                        .token(token)
+                        .channel(channelId)
+                        .build()
+        );
+
+        if (!joinResponse.isOk()) {
+            System.err.println("Failed to join channel " + channelId + ": " + joinResponse.getError());
+        } else {
+            System.out.println("Bot added to channel " + channelId);
+        }
     }
 }
