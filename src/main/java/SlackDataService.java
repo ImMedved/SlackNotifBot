@@ -22,24 +22,24 @@ public class SlackDataService {
         this.userId = userId;
     }
 
-    public List<Message> getUnreadDirectMessages(double lastCheckTimestamp) throws IOException, SlackApiException {
+    public List<SimpleMessage> getUnreadDirectMessages(double lastCheckTimestamp) throws IOException, SlackApiException {
         Slack slack = Slack.getInstance();
-        List<Message> unreadDirectMessages = new ArrayList<>();
+        List<SimpleMessage> unreadDirectMessages = new ArrayList<>();
 
         ConversationsListResponse listResponse = slack.methods(token).conversationsList(req -> req
                 .types(List.of(ConversationType.IM)));
-
+        System.out.println("ConversationsHistoryResponse response in getUnreadDirectMessages is: " + listResponse);
         if (listResponse.getChannels() != null) {
             for (Conversation dmChannel : listResponse.getChannels()) {
-                if (dmChannel.getId().equals(botChannelId)) continue;
+                if (!dmChannel.getId().equals(botChannelId)) { // Убедитесь, что это не канал с ботом
+                    ConversationsHistoryResponse historyResponse = slack.methods(token)
+                            .conversationsHistory(req -> req.channel(dmChannel.getId()));
 
-                ConversationsHistoryResponse historyResponse = slack.methods(token)
-                        .conversationsHistory(req -> req.channel(dmChannel.getId()));
-
-                if (historyResponse.getMessages() != null) {
-                    for (Message message : historyResponse.getMessages()) {
-                        if (Double.parseDouble(message.getTs()) > lastCheckTimestamp) {
-                            unreadDirectMessages.add(message);
+                    if (historyResponse.getMessages() != null) {
+                        for (Message message : historyResponse.getMessages()) {
+                            if (Double.parseDouble(message.getTs()) > lastCheckTimestamp) {
+                                unreadDirectMessages.add(new SimpleMessage(message.getText(), dmChannel.getId(), message.getUser()));
+                            }
                         }
                     }
                 }
@@ -47,6 +47,7 @@ public class SlackDataService {
         }
         return unreadDirectMessages;
     }
+
 
     public List<String> getUserChannels() throws IOException, SlackApiException {
         Slack slack = Slack.getInstance();
@@ -73,21 +74,23 @@ public class SlackDataService {
         return channelIds;
     }
 
-    public List<Message> getUnreadChannelMessages(String channelId, double lastCheckTimestamp) throws IOException, SlackApiException {
+    public List<SimpleMessage> getUnreadChannelMessages(String channelId, double lastCheckTimestamp) throws IOException, SlackApiException {
         Slack slack = Slack.getInstance();
-        List<Message> unreadMessages = new ArrayList<>();
+        List<SimpleMessage> unreadMessages = new ArrayList<>();
 
         ConversationsHistoryResponse response = slack.methods(token).conversationsHistory(req -> req.channel(channelId));
-
+        System.out.println("ConversationsHistoryResponse response in getUnreadChannelMessages is: " + response);
         if (response.getMessages() != null) {
             for (Message message : response.getMessages()) {
+                System.out.println("Messages in getUnreadChannelMessages method are: " + message);
                 if (Double.parseDouble(message.getTs()) > lastCheckTimestamp) {
-                    unreadMessages.add(message);
+                    unreadMessages.add(new SimpleMessage(message.getText(), channelId, message.getUser()));
                 }
             }
         }
         return unreadMessages;
     }
+
 
     public String getUserId() {
         return userId;
